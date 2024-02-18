@@ -44,23 +44,32 @@
 
 (def outdated-casks (filter is-outdated? casks-info))
 
-(defn label [text]
-  (ui/rect (paint/fill 0x00000000)
-           (ui/padding 10 (ui/label text))))
+(defn label
+  ([text]
+   (label text {:row-color 0x00000000}))
+  ([text opts]
+   (ui/rect (paint/fill (:row-color opts))
+            (ui/padding 10 (ui/label text)))))
+
+
 
 (defn header []
   (ui/row
     [:stretch 1 (label "Cask")]
     [:stretch 1 (label "Installed Version")]
     [:stretch 1 (label "Latest Version")]
-    [:stretch 1 (label "Outdated?")]))
+    [:stretch 1 (label "")]))
 
 (defn cask-row [index {:keys [token version installed] :as cask}]
-  (let [update-button (when (is-outdated? cask) (ui/padding 20 0 (ui/button #(upgrade-cask token)
-                                                                            (ui/label "Update"))))]
-    [(label token)
-     (label installed)
-     (label version)
+  (let [row-color (if (odd? index) 0x00000000 0xF5F5F5F5)
+        opts {:row-color row-color}
+        update-button (if (is-outdated? cask) (ui/rect (paint/fill row-color) (ui/padding 20 0 (ui/button #(upgrade-cask token)
+                                                                                                          (ui/label "Update")))) (label "" opts))]
+
+
+    [(label token opts)
+     (label installed opts)
+     (label version opts)
      update-button]))
 
 (defn ui-app-header [casks]
@@ -78,13 +87,12 @@
 
 
 (defn ui-casks-table []
-  (ui/rounded-rect
-    {:radius 8}
-    (paint/fill 0xFFFFFFFF)
-    (ui/column (header)
-               (ui/vscrollbar
-                 (ui/grid
-                   (map-indexed cask-row casks-info))))))
+  (ui/rounded-rect {:radius 8} (paint/fill 0xFFFFFFFF)
+     (ui/rounded-rect {:radius 8} (paint/stroke 0xFFE0E0E0 0.8)
+                      (ui/column (header)
+                                 (ui/vscrollbar
+                                   (ui/grid
+                                     (map-indexed cask-row casks-info)))))))
 
 (def app
   (ui/default-theme
