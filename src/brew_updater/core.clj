@@ -65,24 +65,20 @@
                  (ui/grid
                    (cons (header) (map cask-row casks-info)))))))
 
-(defn start-app []
+(defn start-app [app-icon]
   (ui/start-app!
     (ui/window
-      {:title "Homebrew Updater"}
+      {:title    "Homebrew Updater"
+       :mac-icon app-icon}
       #'app)))
 
 (comment
   (sync-deps)
 
-  (start-app)
-
-  (assoc-in [:compile-opts :direct-linking])
-
-  (System/getProperty "java.version")
-
+  (start-app "images/icon.icns")
 
   {})
 
-(defn -main []
-  (println "hello world")
-  (start-app))
+(defn -main [& args]
+  (println "Starting the application" (first args))
+  (start-app (first args)))
