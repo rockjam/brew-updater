@@ -32,38 +32,67 @@
 (defn all-casks-info []
   (pmap read-cask-info (list-casks)))
 
+(defn is-outdated? [{:keys [version installed]}] (not (= version installed)))
+
 (defn by-outdated-name [a b]
-  (let [by-version (fn [{:keys [version installed]}] (if (= version installed) 1 -1))]
+  (let [by-version (fn [cask] (if (is-outdated? cask) -1 1))]
     (compare
       [(by-version a) (:token a)]
       [(by-version b) (:token b)])))
 
-(def casks-info (sort by-outdated-name (all-casks-info)))
+(defonce casks-info (sort by-outdated-name (all-casks-info)))
+
+(def outdated-casks (filter is-outdated? casks-info))
 
 (defn label [text]
   (ui/rect (paint/fill 0x00000000)
            (ui/padding 10 (ui/label text))))
 
 (defn header []
-  [(label "Cask") (label "Installed Version") (label "Latest Version") (label "Outdated?")])
+  (ui/row
+    [:stretch 1 (label "Cask")]
+    [:stretch 1 (label "Installed Version")]
+    [:stretch 1 (label "Latest Version")]
+    [:stretch 1 (label "Outdated?")]))
 
-
-(defn cask-row [{:keys [token version installed]}]
-  (let [update-button (if (= version installed) (label "") (ui/button #(upgrade-cask token)
-                                                                      (ui/label "Update")))]
+(defn cask-row [index {:keys [token version installed] :as cask}]
+  (let [update-button (when (is-outdated? cask) (ui/padding 20 0 (ui/button #(upgrade-cask token)
+                                                                            (ui/label "Update"))))]
     [(label token)
      (label installed)
      (label version)
      update-button]))
 
+(defn ui-app-header [casks]
+  (let [outdated-count (count (filter is-outdated? casks))]
+    (ui/row
+      [:stretch 1
+       (ui/column
+         (ui/label "Installed Applications")
+         (ui/label (str outdated-count " outdated")))]
+      [:stretch 1
+       (ui/halign 1 1
+                  (ui/button
+                    #(println "Updating all applications")
+                    (ui/label "Update all")))])))
+
+
+(defn ui-casks-table []
+  (ui/rounded-rect
+    {:radius 8}
+    (paint/fill 0xFFFFFFFF)
+    (ui/column (header)
+               (ui/vscrollbar
+                 (ui/grid
+                   (map-indexed cask-row casks-info))))))
+
 (def app
   (ui/default-theme
     {}
     (ui/halign 0.5
-               (ui/padding
-                 0
-                 (ui/grid
-                   (cons (header) (map cask-row casks-info)))))))
+               (ui/column
+                 (ui-app-header casks-info)
+                 (ui-casks-table)))))
 
 (defn start-app [app-icon]
   (ui/start-app!

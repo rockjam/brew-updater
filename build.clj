@@ -5,7 +5,6 @@
 (def class-dir "./target/classes")
 (def basis (b/create-basis {:project "deps.edn"}))
 (def uber-file "./target/app.jar")
-(def native-file "./target/app")
 
 (defn clean [_] (b/delete {:path "target"}))
 
@@ -23,11 +22,3 @@
                :basis     basis
                :main      main-class}))
 
-(defn native-image [_]
-      "Generates native executable using GraalVM Native Image. Assumes uberjar already exists"
-      (b/process {:command-args ["native-image"
-                                 "--features=clj_easy.graal_build_time.InitClojureClasses"
-                                 "--no-fallback"
-                                 "-jar"
-                                 uber-file
-                                 native-file]}))

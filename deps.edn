@@ -1,12 +1,10 @@
 {
- :paths ["src" "resources"]
  :deps    {
-           org.clojure/clojure                  {:mvn/version "1.12.0-alpha5"}
-           org.clojure/core.async               {:mvn/version "1.6.681"}
-           org.clojure/data.json                {:mvn/version "2.5.0"}
-           com.github.clj-easy/graal-build-time {:mvn/version "1.0.5"}
-           clj-http/clj-http                    {:mvn/version "3.12.3"}
-           io.github.humbleui/humbleui          {:git/sha "321a27826b6dca2e35bde3b6ec0fc261f2e71121"}}
+           org.clojure/clojure         {:mvn/version "1.12.0-alpha5"}
+           org.clojure/core.async      {:mvn/version "1.6.681"}
+           org.clojure/data.json       {:mvn/version "2.5.0"}
+           clj-http/clj-http           {:mvn/version "3.12.3"}
+           io.github.humbleui/humbleui {:git/sha "321a27826b6dca2e35bde3b6ec0fc261f2e71121"}}
  :aliases {:run   {:main-opts ["-m" "brew-updater.core"]}
            :build {:deps       {io.github.clojure/tools.build {:git/tag "v0.9.6" :git/sha "8e78bcc"}}
                    :ns-default build}
