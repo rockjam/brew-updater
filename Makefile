@@ -7,6 +7,6 @@ build:
 	clj -T:build uber
 
 .PHONY: package
-package:
+package: build
 	cp images/icon.icns target
 	cp scripts/homebrew-updater.sh target

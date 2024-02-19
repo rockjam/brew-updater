@@ -26,13 +26,19 @@
 
 (defn read-cask-info [cask]
   (let [command-output (:out (sh "brew" "info" "--cask" "--json=v2" cask))
-        cask-info (first (:casks (json/read-str command-output :key-fn keyword)))]
-    (select-keys cask-info [:name :token :version :installed])))
+        {:keys [name token version installed]} (first (:casks (json/read-str command-output :key-fn keyword)))
+        clean-version (fn [v] (first (str/split v #",")))]
+    {:name              (first name)
+     :token             token
+     :version           (clean-version version)
+     :installed-version (clean-version installed)}))
+
+(first (str/split "4.26.1,131620" #","))
 
 (defn all-casks-info []
   (pmap read-cask-info (list-casks)))
 
-(defn is-outdated? [{:keys [version installed]}] (not (= version installed)))
+(defn is-outdated? [{:keys [version installed-version]}] (not (= version installed-version)))
 
 (defn by-outdated-name [a b]
   (let [by-version (fn [cask] (if (is-outdated? cask) -1 1))]
@@ -40,9 +46,7 @@
       [(by-version a) (:token a)]
       [(by-version b) (:token b)])))
 
-(defonce casks-info (sort by-outdated-name (all-casks-info)))
-
-(def outdated-casks (filter is-outdated? casks-info))
+(def casks-info (sort by-outdated-name (all-casks-info)))
 
 (defn label
   ([text]
@@ -52,7 +56,6 @@
             (ui/padding 10 (ui/label text)))))
 
 
-
 (defn header []
   (ui/row
     [:stretch 1 (label "Cask")]
@@ -60,15 +63,13 @@
     [:stretch 1 (label "Latest Version")]
     [:stretch 1 (label "")]))
 
-(defn cask-row [index {:keys [token version installed] :as cask}]
+(defn cask-row [index {:keys [name token version installed-version] :as cask}]
   (let [row-color (if (odd? index) 0x00000000 0xF5F5F5F5)
         opts {:row-color row-color}
         update-button (if (is-outdated? cask) (ui/rect (paint/fill row-color) (ui/padding 20 0 (ui/button #(upgrade-cask token)
                                                                                                           (ui/label "Update")))) (label "" opts))]
-
-
-    [(label token opts)
-     (label installed opts)
+    [(label name opts)
+     (label installed-version opts)
      (label version opts)
      update-button]))
 
@@ -86,13 +87,15 @@
                     (ui/label "Update all")))])))
 
 
-(defn ui-casks-table []
-  (ui/rounded-rect {:radius 8} (paint/fill 0xFFFFFFFF)
-     (ui/rounded-rect {:radius 8} (paint/stroke 0xFFE0E0E0 0.8)
-                      (ui/column (header)
-                                 (ui/vscrollbar
-                                   (ui/grid
-                                     (map-indexed cask-row casks-info)))))))
+(defn ui-casks-table [casks]
+  (ui/rounded-rect
+    {:radius 8} (paint/fill 0xFFFFFFFF)
+    (ui/rounded-rect
+      {:radius 8} (paint/stroke 0xFFE0E0E0 0.8)
+      (ui/column (header)
+                 (ui/vscrollbar
+                   (ui/grid
+                     (map-indexed cask-row casks)))))))
 
 (def app
   (ui/default-theme
@@ -100,12 +103,14 @@
     (ui/halign 0.5
                (ui/column
                  (ui-app-header casks-info)
-                 (ui-casks-table)))))
+                 (ui-casks-table casks-info)))))
 
 (defn start-app [app-icon]
   (ui/start-app!
     (ui/window
       {:title    "Homebrew Updater"
+       :width    600
+       :height   600
        :mac-icon app-icon}
       #'app)))
 
