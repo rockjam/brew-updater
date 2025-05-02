@@ -11,6 +11,10 @@ package: build
 	cp images/icon.icns target
 	cp scripts/homebrew-updater.sh target
 
+.PHONY: repl
+repl:
+	clj -M:nrepl
+
 .PHONY: run
 run:
-	clj -M -m brew-updater.core images/icon.icns
+	clj -M:run

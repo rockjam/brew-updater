@@ -5,9 +5,7 @@
     [clojure.java.shell :refer [sh]]
     [clojure.repl.deps :refer [sync-deps]]
     [clojure.string :as str]
-    [io.github.humbleui.paint :as paint]
-    [io.github.humbleui.ui :as ui]
-    [io.github.humbleui.window :as window]))
+    [io.github.humbleui.ui :as ui]))
 
 (def caskroom-dir "/opt/homebrew/Caskroom")
 
@@ -27,8 +25,6 @@
      :version           (clean-version version)
      :installed-version (clean-version installed)}))
 
-(first (str/split "4.26.1,131620" #","))
-
 (defn all-casks-info []
   (pmap read-cask-info (list-casks)))
 
@@ -40,88 +36,87 @@
       [(by-version a) (:token a)]
       [(by-version b) (:token b)])))
 
-(def *window (atom nil))
+(def *state
+  (ui/signal
+    (into {} (map (fn [x] [(:token x) x]) (all-casks-info)))))
 
-(def *state (atom (into {} (map (fn [x] [(:token x) x]) (all-casks-info)))))
+(comment
+  @*state
+
+  ())
 
 (defn upgrade-cask [cask]
   (future
+    ;; TODO: catch exceptions
     (do
       (println "Updating" cask)
       (sh "brew" "upgrade" "--cask" cask)
       (swap! *state #(update-in % [cask] (fn [_] (read-cask-info cask))))
-      (println cask "updated")
-      (window/request-frame @*window))))
+      (println cask "updated"))))
 
 (defn label
   ([text]
    (label text {:row-color 0x00000000}))
   ([text opts]
-   (ui/rect (paint/fill (:row-color opts))
-            (ui/padding 10 (ui/label text)))))
-
+   [ui/rect {:paint {:fill (:row-color opts)}}
+    [ui/padding {:padding 10} [ui/label text]]]))
 
 (defn header []
-  (ui/row
-    [:stretch 1 (label "Cask")]
-    [:stretch 1 (label "Installed Version")]
-    [:stretch 1 (label "Latest Version")]
-    [:stretch 1 (label "")]))
+  [ui/row
+   (label "Cask")
+   (label "Installed Version")
+   (label "Latest Version")
+   (label "")])
+
+(defn update-button [row-color token]
+  [ui/rect {:paint {:fill row-color}}
+   [ui/button {:on-click (fn [e] (upgrade-cask token))}
+    [ui/label "Update"]]])
 
 (defn cask-row [index {:keys [name token version installed-version] :as cask}]
   (let [row-color (if (odd? index) 0x00000000 0xF5F5F5F5)
         opts {:row-color row-color}
-        update-button (if (is-outdated? cask) (ui/rect (paint/fill row-color) (ui/padding 20 0 (ui/button #(upgrade-cask token)
-                                                                                                          (ui/label "Update")))) (label "" opts))]
-    [(label name opts)
-     (label installed-version opts)
-     (label version opts)
-     update-button]))
+        update-button (if (is-outdated? cask) (update-button row-color token) (label "" opts))]
+    (list
+      (label name opts)
+      (label installed-version opts)
+      (label version opts)
+      update-button)))
 
 (defn ui-app-header [casks]
   (let [outdated-count (count (filter is-outdated? casks))]
-    (ui/row
-      [:stretch 1
-       (ui/column
-         (ui/label "Installed Applications")
-         (ui/label (str outdated-count " outdated")))]
-      [:stretch 1
-       (ui/halign 1 1
-                  (ui/button
-                    #(println "Updating all applications")
-                    (ui/label "Update all")))])))
+    [ui/row
+     [ui/column
+      [ui/label "Installed Applications"]
+      [ui/label (str outdated-count " outdated")]]
+     [ui/button
+      {:on-click (fn [e] (println "Updating all applications"))}
+      [ui/label "Update all"]]]))
 
 
 (defn ui-casks-table [casks]
-  (ui/rounded-rect
-    {:radius 8} (paint/fill 0xFFFFFFFF)
-    (ui/rounded-rect
-      {:radius 8} (paint/stroke 0xFFE0E0E0 0.8)
-      (ui/column (header)
-                 (ui/vscrollbar
-                   (ui/grid
-                     (map-indexed cask-row casks)))))))
+  [ui/rect {:radius 8 :paint {:fill 0xFFFFFFFF}}
+   [ui/rect {:radius 8 :paint {:stroke 0xFFE0E0E0, :width 0.8}}
+    [ui/column (header)
+     [ui/vscroll
+      [ui/grid {:cols 4}
+       (map-indexed cask-row casks)]]]]])
 
-(def app
-  (ui/default-theme
-    {}
-    (ui/dynamic _ [casks-info (sort by-outdated-name (vals @*state))]
-                (ui/halign 0.5
-                           (ui/column
-                             (ui-app-header casks-info)
-                             (ui-casks-table casks-info))))))
+(defn app []
+  (let [casks-info (sort by-outdated-name (vals @*state))]
+    [ui/align {:x 0.5}
+     [ui/column
+      (ui-app-header casks-info)
+      (ui-casks-table casks-info)]]))
 
 (defn start-app [app-icon]
   (ui/start-app!
-    (let [w (ui/window
-              {:title    "Homebrew Updater"
-               :width    600
-               :height   600
-               :mac-icon app-icon}
-              #'app)]
-      (println w)
-      (reset! *window w)
-      w)))
+    (ui/window
+      {:title    "Homebrew Updater"
+       :width    600
+       :height   600
+       :mac-icon app-icon}
+      #'app)))
 
 (comment
   (sync-deps)
