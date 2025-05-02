@@ -5,20 +5,14 @@
     [clojure.java.shell :refer [sh]]
     [clojure.repl.deps :refer [sync-deps]]
     [clojure.string :as str]
-    [clojure.core.async :refer [thread go <!]]
     [io.github.humbleui.paint :as paint]
-    [io.github.humbleui.ui :as ui]))
+    [io.github.humbleui.ui :as ui]
+    [io.github.humbleui.window :as window]))
 
 (def caskroom-dir "/opt/homebrew/Caskroom")
 
 (defn brew-update []
   (= 0 (:exit (sh "brew" "update"))))
-
-(defn upgrade-cask [cask]
-  (let [ch (thread (sh "brew" "upgrade" "--cask" cask))]
-    (do
-      (println "Upgrading" cask)
-      (go (println (<! ch))))))
 
 (defn list-casks [] (-> (sh "ls" caskroom-dir)
                         (:out)
@@ -46,7 +40,18 @@
       [(by-version a) (:token a)]
       [(by-version b) (:token b)])))
 
-(def casks-info (sort by-outdated-name (all-casks-info)))
+(def *window (atom nil))
+
+(def *state (atom (into {} (map (fn [x] [(:token x) x]) (all-casks-info)))))
+
+(defn upgrade-cask [cask]
+  (future
+    (do
+      (println "Updating" cask)
+      (sh "brew" "upgrade" "--cask" cask)
+      (swap! *state #(update-in % [cask] (fn [_] (read-cask-info cask))))
+      (println cask "updated")
+      (window/request-frame @*window))))
 
 (defn label
   ([text]
@@ -100,19 +105,23 @@
 (def app
   (ui/default-theme
     {}
-    (ui/halign 0.5
-               (ui/column
-                 (ui-app-header casks-info)
-                 (ui-casks-table casks-info)))))
+    (ui/dynamic _ [casks-info (sort by-outdated-name (vals @*state))]
+                (ui/halign 0.5
+                           (ui/column
+                             (ui-app-header casks-info)
+                             (ui-casks-table casks-info))))))
 
 (defn start-app [app-icon]
   (ui/start-app!
-    (ui/window
-      {:title    "Homebrew Updater"
-       :width    600
-       :height   600
-       :mac-icon app-icon}
-      #'app)))
+    (let [w (ui/window
+              {:title    "Homebrew Updater"
+               :width    600
+               :height   600
+               :mac-icon app-icon}
+              #'app)]
+      (println w)
+      (reset! *window w)
+      w)))
 
 (comment
   (sync-deps)
