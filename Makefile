@@ -29,3 +29,7 @@ repl:
 .PHONY: run
 run:
 	clj -M:run
+
+.PHONY: downgrade-casks
+run:
+	brew install -s old-casks/signal.rb
