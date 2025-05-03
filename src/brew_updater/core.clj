@@ -8,11 +8,14 @@
     [io.github.humbleui.ui :as ui]))
 
 (defn make-cask [{:keys [name token version installed]}]
-  (let [clean-version (fn [v] (first (str/split v #",")))]
+  (let [clean-version (fn [v] (first (str/split v #",")))
+        version (clean-version version)
+        installed-version (clean-version installed)]
     {:name              (first name)
      :token             token
-     :version           (clean-version version)
-     :installed-version (clean-version installed)}))
+     :version           version
+     :installed-version installed-version
+     :outdated?          (not= version installed-version)}))
 
 (defn read-all-casks []
   (let [casks (->
@@ -36,12 +39,10 @@
 
   (read-cask "Alfred")
 
- ())
-
-(defn is-outdated? [{:keys [version installed-version]}] (not (= version installed-version)))
+  ())
 
 (defn by-outdated-name [a b]
-  (let [by-version (fn [cask] (if (is-outdated? cask) -1 1))]
+  (let [by-version (fn [cask] (if (:outdated? cask) -1 1))]
     (compare
       [(by-version a) (:token a)]
       [(by-version b) (:token b)])))
@@ -86,7 +87,7 @@
 (defn cask-row [index {:keys [name token version installed-version] :as cask}]
   (let [row-color (if (odd? index) 0x00000000 0xF5F5F5F5)
         opts {:row-color row-color}
-        update-button (if (is-outdated? cask) (update-button row-color token) (label "" opts))]
+        update-button (if (:outdated? cask) (update-button row-color token) (label "" opts))]
     (list
       (label name opts)
       (label installed-version opts)
@@ -94,7 +95,7 @@
       update-button)))
 
 (defn ui-app-header [casks]
-  (let [outdated-count (count (filter is-outdated? casks))]
+  (let [outdated-count (count (filter :outdated? casks))]
     [ui/row
      [ui/column
       [ui/label "Installed Applications"]
