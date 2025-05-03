@@ -1,13 +1,10 @@
 # Brew Updater
 
 ## TODO
-* Update UI after individual cask is updated
-* Display short version of the app without hashes and all
+* Handle errors during the update
 * Update all casks. probably can spawn a lot of threads, and listen to their updates
 * Figure out how to respond to password prompts from brew
 * Make fonts and paddings prettier
-* Add app icons
-
 
 ## How to check for updates from brew
 1. Check updates with `brew update` 

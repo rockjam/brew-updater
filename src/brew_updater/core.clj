@@ -7,26 +7,36 @@
     [clojure.string :as str]
     [io.github.humbleui.ui :as ui]))
 
-(def caskroom-dir "/opt/homebrew/Caskroom")
-
-(defn brew-update []
-  (= 0 (:exit (sh "brew" "update"))))
-
-(defn list-casks [] (-> (sh "ls" caskroom-dir)
-                        (:out)
-                        (str/split #"\n")))
-
-(defn read-cask-info [cask]
-  (let [command-output (:out (sh "brew" "info" "--cask" "--json=v2" cask))
-        {:keys [name token version installed]} (first (:casks (json/read-str command-output :key-fn keyword)))
-        clean-version (fn [v] (first (str/split v #",")))]
+(defn make-cask [{:keys [name token version installed]}]
+  (let [clean-version (fn [v] (first (str/split v #",")))]
     {:name              (first name)
      :token             token
      :version           (clean-version version)
      :installed-version (clean-version installed)}))
 
-(defn all-casks-info []
-  (pmap read-cask-info (list-casks)))
+(defn read-all-casks []
+  (let [casks (->
+                (sh "brew" "info" "--installed" "--json=v2")
+                :out
+                (json/read-str :key-fn keyword)
+                :casks)]
+    (map make-cask casks)))
+
+(defn read-cask [cask]
+  (->
+    (sh "brew" "info" "--cask" "--json=v2" cask)
+    :out
+    (json/read-str :key-fn keyword)
+    :casks
+    first
+    make-cask))
+
+(comment
+  (read-all-casks)
+
+  (read-cask "Alfred")
+
+ ())
 
 (defn is-outdated? [{:keys [version installed-version]}] (not (= version installed-version)))
 
@@ -38,7 +48,7 @@
 
 (def *state
   (ui/signal
-    (into {} (map (fn [x] [(:token x) x]) (all-casks-info)))))
+    (into {} (map (fn [x] [(:token x) x]) (read-all-casks)))))
 
 (comment
   @*state
@@ -51,7 +61,7 @@
     (do
       (println "Updating" cask)
       (sh "brew" "upgrade" "--cask" cask)
-      (swap! *state #(update-in % [cask] (fn [_] (read-cask-info cask))))
+      (swap! *state #(update-in % [cask] (fn [_] (read-cask cask))))
       (println cask "updated"))))
 
 (defn label
