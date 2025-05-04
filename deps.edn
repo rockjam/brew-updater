@@ -1,8 +1,9 @@
 {
  :deps    {org.clojure/clojure         {:mvn/version "1.12.0"}
            org.clojure/data.json       {:mvn/version "2.5.1"}
-           clj-http/clj-http           {:mvn/version "3.13.0"}
-           io.github.humbleui/humbleui {:git/sha "edcdcd75959d8069a3b54e4f92b7a0ea04068661"}}
+           io.github.humbleui/humbleui {:git/sha    "edcdcd75959d8069a3b54e4f92b7a0ea04068661"
+                                        :exclusions [io.github.humbleui/skija-windows-x64
+                                                     io.github.humbleui/skija-linux-x64]}}
  :aliases {:run   {:main-opts ["-m" "brew-updater.core" "images/icon.icns"]}
            :build {:deps       {io.github.clojure/tools.build {:git/tag "v0.9.6" :git/sha "8e78bcc"}}
                    :ns-default build}

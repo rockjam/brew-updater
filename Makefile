@@ -31,5 +31,5 @@ run:
 	clj -M:run
 
 .PHONY: downgrade-casks
-run:
+downgrade-casks:
 	brew install -s old-casks/signal.rb

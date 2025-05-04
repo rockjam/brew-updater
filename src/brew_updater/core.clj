@@ -104,7 +104,6 @@
       {:on-click (fn [e] (println "Updating all applications"))}
       [ui/label "Update all"]]]))
 
-
 (defn ui-casks-table [casks]
   [ui/rect {:radius 8 :paint {:fill 0xFFFFFFFF}}
    [ui/rect {:radius 8 :paint {:stroke 0xFFE0E0E0, :width 0.8}}
