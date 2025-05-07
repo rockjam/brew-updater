@@ -47,9 +47,7 @@
       [(by-version a) (:token a)]
       [(by-version b) (:token b)])))
 
-(def *state
-  (ui/signal
-    (into {} (map (fn [x] [(:token x) x]) (read-all-casks)))))
+(def *state (ui/signal {}))
 
 (comment
   @*state
@@ -137,4 +135,5 @@
 
 (defn -main [& args]
   (println "Starting the application" (first args))
+  (reset! *state (into {} (map (fn [x] [(:token x) x]) (read-all-casks))))
   (start-app (first args)))
