@@ -25,6 +25,7 @@ build-dmg: build
 .PHONY: jdeps
 jdeps:
 	jdeps \
+		--print-module-deps \
 		--ignore-missing-deps \
 		--module-path /Users/rockjam/.m2/repository/io/github/humbleui/types/0.2.0/types-0.2.0.jar \
 		--class-path target \
