@@ -5,7 +5,8 @@
     [clojure.java.shell :refer [sh]]
     [clojure.repl.deps :refer [sync-deps]]
     [clojure.string :as str]
-    [io.github.humbleui.ui :as ui]))
+    [io.github.humbleui.ui :as ui]
+    [clojure.java.io :as jio]))
 
 (defn make-cask [{:keys [name token version installed]}]
   (let [clean-version (fn [v] (first (str/split v #",")))
@@ -15,11 +16,20 @@
      :token             token
      :version           version
      :installed-version installed-version
-     :outdated?          (not= version installed-version)}))
+     :outdated?         (not= version installed-version)}))
+
+(def brew-binary
+  (cond
+    (jio/file "/opt/homebrew/bin/brew") "/opt/homebrew/bin/brew"
+    (jio/file "/usr/local/bin/brew") "/usr/local/bin/brew"
+    :else nil))
+
+(defn update-brew []
+  (= 0 (:exit (sh brew-binary "update"))))
 
 (defn read-all-casks []
   (let [casks (->
-                (sh "brew" "info" "--installed" "--json=v2")
+                (sh brew-binary "info" "--installed" "--json=v2")
                 :out
                 (json/read-str :key-fn keyword)
                 :casks)]
@@ -27,7 +37,7 @@
 
 (defn read-cask [cask]
   (->
-    (sh "brew" "info" "--cask" "--json=v2" cask)
+    (sh brew-binary "info" "--cask" "--json=v2" cask)
     :out
     (json/read-str :key-fn keyword)
     :casks
@@ -39,6 +49,8 @@
 
   (read-cask "Alfred")
 
+  (update-brew)
+
   ())
 
 (defn by-outdated-name [a b]
@@ -47,10 +59,25 @@
       [(by-version a) (:token a)]
       [(by-version b) (:token b)])))
 
-(def *state (ui/signal {}))
+(defonce *state (ui/signal {}))
+
+(defn init-state []
+  (let [brew-installed? (some? brew-binary)
+        init-casks (fn []
+                     (do
+                       (update-brew)
+                       (into {} (map (fn [x] [(:token x) x]) (read-all-casks)))))
+        s (if brew-installed?
+            {:state :ready
+             :casks (init-casks)}
+            {:state :error
+             :error "Homebrew not found. Install Homebrew and restart the application."})]
+    (reset! *state s)))
 
 (comment
   @*state
+
+  (init-state)
 
   ())
 
@@ -92,12 +119,13 @@
       (label version opts)
       update-button)))
 
-(defn ui-app-header [casks]
+(defn ui-app-header [state casks]
   (let [outdated-count (count (filter :outdated? casks))]
     [ui/row
      [ui/column
-      [ui/label "Installed Applications"]
-      [ui/label (str outdated-count " outdated")]]
+      (label "Installed Applications")
+      (label (str outdated-count " outdated"))
+      (label (str "State: " state))]
      [ui/button
       {:on-click (fn [e] (println "Updating all applications"))}
       [ui/label "Update all"]]]))
@@ -111,10 +139,13 @@
        (map-indexed cask-row casks)]]]]])
 
 (defn app []
-  (let [casks-info (sort by-outdated-name (vals @*state))]
+  (let [casks-info (->> (:casks @*state)
+                        (vals)
+                        (sort by-outdated-name))
+        state (:state @*state)]
     [ui/align {:x 0.5}
      [ui/column
-      (ui-app-header casks-info)
+      (ui-app-header state casks-info)
       (ui-casks-table casks-info)]]))
 
 (defn start-app [app-icon]
@@ -135,5 +166,5 @@
 
 (defn -main [& args]
   (println "Starting the application" (first args))
-  (reset! *state (into {} (map (fn [x] [(:token x) x]) (read-all-casks))))
+  (init-state)
   (start-app (first args)))

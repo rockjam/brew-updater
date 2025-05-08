@@ -1,9 +1,10 @@
 # Brew Updater
 
 ## TODO
+* When no executable - show error
 * Handle errors during the update
 * Update all casks. probably can spawn a lot of threads, and listen to their updates
-* Figure out how to respond to password prompts from brew
+* Respond to password prompts from brew
 * Make fonts and paddings prettier
 
 ## How to check for updates from brew
